@@ -2,7 +2,6 @@ const API_BASE = '/api';
 
 let foodsCache = [];
 
-// Безопасный парсер ошибок: не упадет, если сервер вернет HTML вместо JSON
 async function parseError(response) {
     try {
         const contentType = response.headers.get("content-type");
@@ -125,7 +124,6 @@ async function handleMealSubmit(event) {
     const foodName = foodNameInput.value.trim();
     const grams = parseFloat(gramsInput.value);
 
-    // Ищем продукт по имени (игнорируем регистр)
     const food = foodsCache.find(f => f.name.toLowerCase() === foodName.toLowerCase());
 
     if (!food) {
@@ -326,14 +324,13 @@ function renderFoodsList() {
     `).join('');
 }
 
-// Новая функция для заполнения datalist вместо select
 function updateFoodDatalist() {
     const datalist = document.getElementById('foods-datalist');
     datalist.innerHTML = '';
 
     foodsCache.forEach(food => {
         const option = document.createElement('option');
-        option.value = food.name; // Пользователь видит и выбирает имя
+        option.value = food.name;
         datalist.appendChild(option);
     });
 }

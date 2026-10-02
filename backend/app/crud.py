@@ -46,12 +46,10 @@ def delete_food(db: Session, food_id: int) -> bool:
     if not db_food:
         return False
 
-    # ЯВНАЯ ПРОВЕРКА: ищем, есть ли этот продукт в таблице приемов пищи
     is_used = db.query(models.MealEvent).filter(models.MealEvent.food_id == food_id).first()
     if is_used:
         raise ValueError("Невозможно удалить продукт: он уже используется в записях о приемах пищи")
 
-    # Если не используется, смело удаляем
     db.delete(db_food)
     db.commit()
     return True

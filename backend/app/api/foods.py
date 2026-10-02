@@ -52,5 +52,4 @@ def delete_food(food_id: int, db: Session = Depends(get_db)):
             raise HTTPException(status_code=404, detail=f"Продукт с ID {food_id} не найден")
         return None
     except ValueError as e:
-        # Перехватываем нашу явную проверку из crud.py и отдаем красивый ответ
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
