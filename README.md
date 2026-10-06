@@ -1,7 +1,11 @@
 # Дневник диабетика
 
-Веб-приложение для ведения дневника самоконтроля уровня сахара в крови,
-инъекций инсулина и учёта приёмов пищи.
+Веб-приложение (клиент–сервер) для ведения дневника самоконтроля уровня сахара в крови, инъекций инсулина и учёта приёмов пищи.
+
+## Целевые пользователи
+
+- **Пациент с сахарным диабетом** — основной пользователь: регистрируется, вносит измерения сахара, инъекции инсулина и приёмы пищи, ведёт свой справочник продуктов, смотрит ленту и статистику.
+- **Врач / эндокринолог** — вторичный потребитель данных для разбора (вне системы; ролевой модели и совместного доступа между аккаунтами нет).
 
 ## Возможности
 
@@ -20,12 +24,56 @@
 - Alembic (миграции БД)
 - PostgreSQL 16
 - Pydantic (валидация)
+- bcrypt, PyJWT (аутентификация)
 
 **Фронтенд**
 - HTML5, CSS3, Vanilla JavaScript
 
 **Инфраструктура**
 - Docker / Docker Compose
+
+## Архитектура
+
+Единый бэкенд на FastAPI раздаёт REST API (`/api/*`) и статику фронтенда; фронтенд общается с бэкендом по HTTP/JSON; персистентность — PostgreSQL через SQLAlchemy. Авторизация stateless (JWT).
+
+```mermaid
+flowchart LR
+  B[Браузер / frontend] -->|HTTP JSON| API[FastAPI backend/app]
+  API --> R[api/* роутеры]
+  R -.-> SEC[security / deps: JWT]
+  R --> C[crud.py бизнес-логика]
+  C --> M[models.py ORM]
+  M -->|psycopg2| DB[(PostgreSQL)]
+  API -.-> FS[.env / frontend статика]
+```
+
+## Модули и зоны ответственности
+
+| Модуль | Ответственность |
+|---|---|
+| `backend/app/main.py` | сборка FastAPI, CORS, раздача фронтенда, `/healthz` |
+| `backend/app/config.py` | настройки из переменных окружения (`.env`) |
+| `backend/app/database.py` | `engine` / `SessionLocal` / `Base` / `get_db` |
+| `backend/app/models.py` | ORM-модели таблиц |
+| `backend/app/schemas.py` | Pydantic-контракты и валидация |
+| `backend/app/crud.py` | бизнес-логика, доступ к данным, guard-правила, агрегаты |
+| `backend/app/security.py` | хэширование паролей (bcrypt) и JWT |
+| `backend/app/deps.py` | `get_current_user` (авторизация по токену) |
+| `backend/app/default_foods.py` | базовый справочник продуктов |
+| `backend/app/api/*` | HTTP-эндпоинты (`auth`, `foods`, события, `recent`) |
+| `backend/run.py` | точка входа запуска (порт из `.env`) |
+| `backend/scripts/seed.py` | инициализация схемы и демо-данных |
+| `backend/check_db.py` | диагностика подключения к БД |
+| `frontend/*` | клиент (HTML / CSS / JS) |
+| `Dockerfile`, `docker-compose.yml` | контейнеризация и оркестрация `app` + `db` |
+| `requirements.txt` | единый файл зависимостей |
+
+## Точки интеграции
+
+- **СУБД PostgreSQL** — через SQLAlchemy / `psycopg2`, строка подключения из `DATABASE_URL`.
+- **Файловая система** — чтение `.env`, раздача каталога `frontend/` статикой, конфиг `alembic.ini`.
+- **Входящий HTTP/REST** — JSON-эндпоинты `/api/*`, CORS, авторизация `Authorization: Bearer`, документация `/docs`, проверка живости `/healthz`.
+- **Внешние исходящие сервисы** — отсутствуют в текущей версии.
 
 ## Требования
 
@@ -168,3 +216,12 @@ python run.py
 
 http://localhost:8000/
 
+
+### 9. Запуск тестов
+
+python -m venv .venv        
+.venv\Scripts\activate 
+pip install -r requirements-dev.txt  
+docker compose -f docker-compose.test.yml up -d  
+docker compose -f docker-compose.test.yml ps      
+pytest --cov=app --cov-report=term-missing --cov-report=xml --cov-report=html  
