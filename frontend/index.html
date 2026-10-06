@@ -4,122 +4,159 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Дневник диабетика</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/style.css?v=edit1">
 </head>
 <body>
     <div class="container">
-        <header>
-            <h1>Дневник диабетика</h1>
-        </header>
 
-        <main>
-            <section class="add-event-section">
-                <h2>Добавить событие</h2>
-                <div class="event-forms">
-                    <div class="form-card">
-                        <h3>Измерение сахара</h3>
-                        <form id="glucose-form">
-                            <div class="form-group">
-                                <label for="glucose-value">Значение (ммоль/л):</label>
-                                <input type="number" id="glucose-value" step="0.1" min="0" max="30" required>
-                            </div>
-                            <button type="submit">Добавить</button>
-                        </form>
+        <section id="auth-screen" class="auth-screen hidden">
+            <div class="auth-card">
+                <h1>Дневник диабетика</h1>
+
+                <div class="auth-tabs">
+                    <button type="button" id="tab-login" class="auth-tab active">Вход</button>
+                    <button type="button" id="tab-register" class="auth-tab">Регистрация</button>
+                </div>
+
+                <p id="auth-message" class="auth-message hidden"></p>
+
+                <form id="login-form" class="auth-form">
+                    <div class="form-group">
+                        <label for="login-email">Email:</label>
+                        <input type="email" id="login-email" required autocomplete="username">
                     </div>
-
-                    <div class="form-card">
-                        <h3>Инсулин</h3>
-                        <form id="insulin-form">
-                            <div class="form-group">
-                                <label for="insulin-type">Тип:</label>
-                                <select id="insulin-type" required>
-                                    <option value="short">Короткий</option>
-                                    <option value="long">Длинный</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="insulin-dose">Доза (ед):</label>
-                                <input type="number" id="insulin-dose" step="1" min="1" max="50" required>
-                            </div>
-                            <button type="submit">Добавить</button>
-                        </form>
+                    <div class="form-group">
+                        <label for="login-password">Пароль:</label>
+                        <input type="password" id="login-password" required autocomplete="current-password">
                     </div>
+                    <button type="submit">Войти</button>
+                </form>
 
-                    <div class="form-card">
-                        <h3>Приём пищи</h3>
-                        <form id="meal-form">
-                            <div class="form-group">
-                                <label for="meal-food-name">Продукт (начните вводить):</label>
-                                <input type="text" id="meal-food-name" list="foods-datalist" placeholder="Например: гречка" required autocomplete="off">
-                                <datalist id="foods-datalist">
-                                    <!-- Заполняется через JavaScript -->
-                                </datalist>
-                            </div>
-                            <div class="form-group">
-                                <label for="meal-grams">Граммы:</label>
-                                <input type="number" id="meal-grams" step="1" min="1" max="5000" required>
-                            </div>
-                            <button type="submit">Добавить</button>
-                        </form>
+                <form id="register-form" class="auth-form hidden">
+                    <div class="form-group">
+                        <label for="register-email">Email:</label>
+                        <input type="email" id="register-email" required autocomplete="username">
                     </div>
+                    <div class="form-group">
+                        <label for="register-password">Пароль (мин. 8 символов):</label>
+                        <input type="password" id="register-password" minlength="8" required autocomplete="new-password">
+                    </div>
+                    <button type="submit">Зарегистрироваться</button>
+                </form>
+            </div>
+        </section>
+
+        <div id="app-screen" class="hidden">
+            <header>
+                <h1>Дневник диабетика</h1>
+                <div class="header-user">
+                    <span id="current-user-email"></span>
+                    <button type="button" id="logout-btn" class="logout-btn">Выйти</button>
                 </div>
-            </section>
+            </header>
 
-            <section class="events-section">
-                <h2>События</h2>
-
-                <div class="day-block">
-                    <h3 id="today-date">Сегодня</h3>
-                    <div id="today-events" class="events-list"></div>
-                </div>
-
-                <div class="day-block">
-                    <h3 id="yesterday-date">Вчера</h3>
-                    <div id="yesterday-events" class="events-list"></div>
-                </div>
-            </section>
-
-            <section class="stats-section">
-                <h2>Статистика</h2>
-
-                <div class="day-block">
-                    <h3 id="stats-today-date">Сегодня</h3>
-                    <div id="today-stats" class="stats-grid"></div>
-                </div>
-
-                <div class="day-block">
-                    <h3 id="stats-yesterday-date">Вчера</h3>
-                    <div id="yesterday-stats" class="stats-grid"></div>
-                </div>
-            </section>
-
-            <section class="foods-section">
-                <h2>Справочник продуктов</h2>
-
-                <div class="form-card">
-                    <h3>Добавить продукт</h3>
-                    <form id="food-form">
-                        <div class="form-group">
-                            <label for="food-name">Название:</label>
-                            <input type="text" id="food-name" maxlength="200" required>
+            <main>
+                <section class="add-event-section">
+                    <h2>Добавить событие</h2>
+                    <div class="event-forms">
+                        <div class="form-card">
+                            <h3>Измерение сахара</h3>
+                            <form id="glucose-form">
+                                <div class="form-group">
+                                    <label for="glucose-value">Значение (ммоль/л):</label>
+                                    <input type="number" id="glucose-value" step="0.1" min="0" max="30" required>
+                                </div>
+                                <button type="submit">Добавить</button>
+                            </form>
                         </div>
-                        <div class="form-group">
-                            <label for="food-carbs">Углеводы на 100 г:</label>
-                            <input type="number" id="food-carbs" step="0.1" min="0" max="100" required>
+
+                        <div class="form-card">
+                            <h3>Инсулин</h3>
+                            <form id="insulin-form">
+                                <div class="form-group">
+                                    <label for="insulin-type">Тип:</label>
+                                    <select id="insulin-type" required>
+                                        <option value="short">Короткий</option>
+                                        <option value="long">Длинный</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="insulin-dose">Доза (ед):</label>
+                                    <input type="number" id="insulin-dose" step="1" min="1" max="50" required>
+                                </div>
+                                <button type="submit">Добавить</button>
+                            </form>
                         </div>
-                        <button type="submit">Добавить</button>
-                    </form>
-                </div>
 
-                <div id="foods-list" class="foods-list"></div>
-            </section>
-        </main>
+                        <div class="form-card">
+                            <h3>Приём пищи</h3>
+                            <form id="meal-form">
+                                <div class="form-group">
+                                    <label for="meal-food-name">Продукт (начните вводить):</label>
+                                    <input type="text" id="meal-food-name" list="foods-datalist" placeholder="Например: гречка" required autocomplete="off">
+                                    <datalist id="foods-datalist"></datalist>
+                                </div>
+                                <div class="form-group">
+                                    <label for="meal-grams">Граммы:</label>
+                                    <input type="number" id="meal-grams" step="1" min="1" max="5000" required>
+                                </div>
+                                <button type="submit">Добавить</button>
+                            </form>
+                        </div>
+                    </div>
+                </section>
 
-        <footer>
-            <p>Учебное приложение для курса SRE</p>
-        </footer>
+                <section class="events-section">
+                    <h2>События</h2>
+                    <div class="day-block">
+                        <h3 id="today-date">Сегодня</h3>
+                        <div id="today-events" class="events-list"></div>
+                    </div>
+                    <div class="day-block">
+                        <h3 id="yesterday-date">Вчера</h3>
+                        <div id="yesterday-events" class="events-list"></div>
+                    </div>
+                </section>
+
+                <section class="stats-section">
+                    <h2>Статистика</h2>
+                    <div class="day-block">
+                        <h3 id="stats-today-date">Сегодня</h3>
+                        <div id="today-stats" class="stats-grid"></div>
+                    </div>
+                    <div class="day-block">
+                        <h3 id="stats-yesterday-date">Вчера</h3>
+                        <div id="yesterday-stats" class="stats-grid"></div>
+                    </div>
+                </section>
+
+                <section class="foods-section">
+                    <h2>Справочник продуктов</h2>
+                    <div class="form-card">
+                        <h3>Добавить продукт</h3>
+                        <form id="food-form">
+                            <div class="form-group">
+                                <label for="food-name">Название:</label>
+                                <input type="text" id="food-name" maxlength="200" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="food-carbs">Углеводы на 100 г:</label>
+                                <input type="number" id="food-carbs" step="0.1" min="0" max="100" required>
+                            </div>
+                            <button type="submit">Добавить</button>
+                        </form>
+                    </div>
+                    <div id="foods-list" class="foods-list"></div>
+                </section>
+            </main>
+
+            <footer>
+                <p>Учебное приложение для курса SRE</p>
+            </footer>
+        </div>
+
     </div>
 
-    <script src="/static/app.js?v=99"></script>
+    <script src="/static/app.js?v=edit1"></script>
 </body>
 </html>

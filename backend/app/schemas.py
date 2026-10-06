@@ -2,7 +2,34 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Optional, Literal
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_validator
+
+EMAIL_PATTERN = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
+
+
+class UserBase(BaseModel):
+    email: str = Field(..., pattern=EMAIL_PATTERN, max_length=255, description="Email")
+
+
+class UserCreate(UserBase):
+    password: str = Field(..., min_length=8, max_length=128, description="Пароль (мин. 8 символов)")
+
+
+class UserLogin(BaseModel):
+    email: str = Field(..., pattern=EMAIL_PATTERN, max_length=255)
+    password: str = Field(..., min_length=1, max_length=128)
+
+
+class UserRead(UserBase):
+    id: int
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
 
 
 class FoodBase(BaseModel):

@@ -273,3 +273,151 @@ footer {
         font-size: 1.5em;
     }
 }
+
+
+.hidden {
+    display: none !important;
+}
+
+.auth-screen {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 80vh;
+    background: none;
+    box-shadow: none;
+    padding: 0;
+}
+
+.auth-card {
+    background-color: #fff;
+    padding: 30px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    width: 100%;
+    max-width: 380px;
+}
+
+.auth-card h1 {
+    text-align: center;
+    color: #2c3e50;
+    margin-bottom: 20px;
+    font-size: 1.5em;
+}
+
+.auth-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.auth-tab {
+    flex: 1;
+    background-color: #ecf0f1;
+    color: #2c3e50;
+    border: 1px solid #ddd;
+}
+
+.auth-tab.active {
+    background-color: #3498db;
+    color: #fff;
+    border-color: #3498db;
+}
+
+.auth-message {
+    background-color: #fdecea;
+    color: #c0392b;
+    border: 1px solid #f5c6cb;
+    padding: 10px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    font-size: 14px;
+    text-align: center;
+}
+
+.header-user {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-top: 10px;
+    font-size: 14px;
+    color: #7f8c8d;
+}
+
+.logout-btn {
+    background-color: #e74c3c;
+    padding: 6px 14px;
+    font-size: 13px;
+}
+
+.logout-btn:hover {
+    background-color: #c0392b;
+}
+
+.food-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.food-edit {
+    background-color: #f39c12;
+    padding: 5px 12px;
+    font-size: 12px;
+}
+
+.food-edit:hover {
+    background-color: #d68910;
+}
+
+.food-edit-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    border-color: #f39c12;
+}
+
+.food-edit-fields {
+    display: flex;
+    gap: 10px;
+}
+
+.food-edit-fields input[type="text"] {
+    flex: 2;
+}
+
+.food-edit-fields input[type="number"] {
+    flex: 1;
+}
+
+.food-edit-fields input {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.food-edit-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.food-save {
+    background-color: #27ae60;
+    padding: 6px 14px;
+    font-size: 13px;
+}
+
+.food-save:hover {
+    background-color: #1e8449;
+}
+
+.food-cancel {
+    background-color: #95a5a6;
+    padding: 6px 14px;
+    font-size: 13px;
+}
+
+.food-cancel:hover {
+    background-color: #7f8c8d;
+}
