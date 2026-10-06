@@ -37,7 +37,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-frontend_path = Path(__file__).parent.parent.parent / "frontend"
+frontend_path = Path.cwd() / "frontend"
 
 @app.get("/", include_in_schema=False)
 async def serve_frontend():

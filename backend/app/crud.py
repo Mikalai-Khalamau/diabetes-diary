@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import func
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app import models, schemas
@@ -206,29 +206,33 @@ def delete_meal_event(db: Session, event_id: int) -> bool:
     return True
 
 
-def get_recent_events(db: Session, timezone_str: str) -> dict:
-    from zoneinfo import ZoneInfo
-
+def _day_boundaries(timezone_str: str):
+    """Возвращает границы (вчера 00:00, сегодня 00:00, завтра 00:00) в целевом TZ."""
     tz = ZoneInfo(timezone_str)
     now = datetime.now(tz)
-
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     today_end = today_start + timedelta(days=1)
     yesterday_start = today_start - timedelta(days=1)
+    return yesterday_start, today_start, today_end
 
+
+def get_recent_events(db: Session, timezone_str: str) -> dict:
+    yesterday_start, today_start, today_end = _day_boundaries(timezone_str)
+
+    # PostgreSQL (колонка TIMESTAMPTZ) корректно сравнивает aware-datetime из разных TZ
     glucose_events = db.query(models.GlucoseEvent).filter(
         models.GlucoseEvent.occurred_at >= yesterday_start,
-        models.GlucoseEvent.occurred_at < today_end
+        models.GlucoseEvent.occurred_at < today_end,
     ).all()
 
     insulin_events = db.query(models.InsulinEvent).filter(
         models.InsulinEvent.occurred_at >= yesterday_start,
-        models.InsulinEvent.occurred_at < today_end
+        models.InsulinEvent.occurred_at < today_end,
     ).all()
 
     meal_events = db.query(models.MealEvent).filter(
         models.MealEvent.occurred_at >= yesterday_start,
-        models.MealEvent.occurred_at < today_end
+        models.MealEvent.occurred_at < today_end,
     ).all()
 
     all_events = []
@@ -277,14 +281,7 @@ def get_recent_events(db: Session, timezone_str: str) -> dict:
 
 
 def get_recent_stats(db: Session, timezone_str: str) -> dict:
-    from zoneinfo import ZoneInfo
-
-    tz = ZoneInfo(timezone_str)
-    now = datetime.now(tz)
-
-    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    today_end = today_start + timedelta(days=1)
-    yesterday_start = today_start - timedelta(days=1)
+    yesterday_start, today_start, today_end = _day_boundaries(timezone_str)
 
     def calculate_day_stats(start, end):
         glucose_stats = db.query(
@@ -294,7 +291,7 @@ def get_recent_stats(db: Session, timezone_str: str) -> dict:
             func.max(models.GlucoseEvent.value).label("max"),
         ).filter(
             models.GlucoseEvent.occurred_at >= start,
-            models.GlucoseEvent.occurred_at < end
+            models.GlucoseEvent.occurred_at < end,
         ).first()
 
         insulin_total = db.query(
@@ -302,7 +299,7 @@ def get_recent_stats(db: Session, timezone_str: str) -> dict:
             func.coalesce(func.sum(models.InsulinEvent.dose), 0).label("total_dose"),
         ).filter(
             models.InsulinEvent.occurred_at >= start,
-            models.InsulinEvent.occurred_at < end
+            models.InsulinEvent.occurred_at < end,
         ).first()
 
         insulin_short = db.query(
@@ -311,7 +308,7 @@ def get_recent_stats(db: Session, timezone_str: str) -> dict:
         ).filter(
             models.InsulinEvent.occurred_at >= start,
             models.InsulinEvent.occurred_at < end,
-            models.InsulinEvent.insulin_type == "short"
+            models.InsulinEvent.insulin_type == "short",
         ).first()
 
         insulin_long = db.query(
@@ -320,7 +317,7 @@ def get_recent_stats(db: Session, timezone_str: str) -> dict:
         ).filter(
             models.InsulinEvent.occurred_at >= start,
             models.InsulinEvent.occurred_at < end,
-            models.InsulinEvent.insulin_type == "long"
+            models.InsulinEvent.insulin_type == "long",
         ).first()
 
         meal_stats = db.query(
@@ -329,37 +326,34 @@ def get_recent_stats(db: Session, timezone_str: str) -> dict:
             func.coalesce(func.sum(models.MealEvent.bread_units), 0).label("total_bu"),
         ).filter(
             models.MealEvent.occurred_at >= start,
-            models.MealEvent.occurred_at < end
+            models.MealEvent.occurred_at < end,
         ).first()
 
         return {
             "date": start.strftime("%Y-%m-%d"),
             "glucose": {
                 "count": glucose_stats.count or 0,
-                "avg": glucose_stats.avg,
-                "min": glucose_stats.min,
-                "max": glucose_stats.max,
+                "avg": float(glucose_stats.avg) if glucose_stats.avg is not None else None,
+                "min": float(glucose_stats.min) if glucose_stats.min is not None else None,
+                "max": float(glucose_stats.max) if glucose_stats.max is not None else None,
             },
             "insulin": {
                 "count": insulin_total.count or 0,
-                "total_dose": insulin_total.total_dose,
+                "total_dose": float(insulin_total.total_dose),
                 "short_count": insulin_short.count or 0,
-                "short_total_dose": insulin_short.total_dose,
+                "short_total_dose": float(insulin_short.total_dose),
                 "long_count": insulin_long.count or 0,
-                "long_total_dose": insulin_long.total_dose,
+                "long_total_dose": float(insulin_long.total_dose),
             },
             "meal": {
                 "count": meal_stats.count or 0,
-                "total_carbs_grams": meal_stats.total_carbs,
-                "total_bread_units": meal_stats.total_bu,
+                "total_carbs_grams": float(meal_stats.total_carbs),
+                "total_bread_units": float(meal_stats.total_bu),
             },
         }
 
-    today_stats = calculate_day_stats(today_start, today_end)
-    yesterday_stats = calculate_day_stats(yesterday_start, today_start)
-
     return {
         "timezone": timezone_str,
-        "today": today_stats,
-        "yesterday": yesterday_stats,
+        "today": calculate_day_stats(today_start, today_end),
+        "yesterday": calculate_day_stats(yesterday_start, today_start),
     }

@@ -1,8 +1,9 @@
 # Дневник диабетика
 
-Веб-приложение для ведения дневника самоконтроля уровня сахара в крови, инъекций инсулина и учёта приёмов пищи.
+Веб-приложение для ведения дневника самоконтроля уровня сахара в крови,
+инъекций инсулина и учёта приёмов пищи.
 
-# Возможности
+## Возможности
 
 - Измерение уровня сахара в крови
 - Учёт инъекций инсулина (короткий и длинный)
@@ -10,9 +11,9 @@
 - Статистика за сегодня и вчера
 - Справочник продуктов с содержанием углеводов
 
-# Стек технологий
+## Стек технологий
 
-# Бэкенд
+**Бэкенд**
 - Python 3.11+
 - FastAPI
 - SQLAlchemy (ORM)
@@ -20,61 +21,150 @@
 - PostgreSQL 16
 - Pydantic (валидация)
 
-# Фронтенд
-- HTML5
-- CSS3
-- JavaScript 
+**Фронтенд**
+- HTML5, CSS3, Vanilla JavaScript
 
-# Требования
+**Инфраструктура**
+- Docker / Docker Compose
 
-- Python 3.11 или выше
-- Docker Desktop
+## Требования
+
+- Docker Desktop (для запуска через контейнеры или для PostgreSQL)
+- Либо: Python 3.11+ и локально установленная PostgreSQL 16 (для запуска без Docker)
 - Git
 
-# Установка и запуск
+---
 
-# 1. Клонировать репозиторий
+## Способ запуска 1. Запуск через Docker Compose (рекомендуется)
 
+Весь стек (приложение + база данных) поднимается одной командой.
+
+### 1. Клонировать репозиторий
+
+```bash
 git clone https://github.com/Mikalai-Khalamau/diabetes-diary.git
 cd diabetes-diary
+```
 
-### 2. Создать виртуальное окружение
+### 2. Создать файл конфигурации
 
+Скопируйте `.env.example` в `.env`:
+
+```bash
+copy .env.example .env      # Windows
+cp .env.example .env        # Linux / macOS
+```
+
+Для Docker-запуска убедитесь, что в `.env` адрес БД указывает на сервис `db`:
+
+```
+DATABASE_URL=postgresql+psycopg2://app:app@db:5432/diary
+```
+
+### 3. Поднять стек
+
+```bash
+docker compose up --build
+```
+
+Команда соберёт образ приложения, запустит PostgreSQL, дождётся готовности БД,
+автоматически инициализирует схему и тестовые данные (`scripts/seed`) и запустит
+сервер.
+
+### 4. Открыть приложение
+
+- Веб-интерфейс: http://localhost:8000/
+- Swagger API: http://localhost:8000/docs
+- Health-check: http://localhost:8000/healthz
+
+### Полезные команды
+
+```bash
+docker compose logs -f app     # логи приложения
+docker compose stop            # остановить (данные БД сохранятся)
+docker compose down            # удалить контейнеры (данные БД сохранятся)
+docker compose down -v         # удалить контейнеры и данные БД (чистый старт)
+```
+
+---
+
+## Способ 2. Запуск без Docker (локально)
+
+Приложение запускается локально через Python; PostgreSQL при этом можно
+поднять в Docker (или использовать локально установленную БД).
+
+### 1. Клонировать репозиторий
+
+```bash
+git clone https://github.com/Mikalai-Khalamau/diabetes-diary.git
+cd diabetes-diary
+```
+
+### 2. Создать и активировать виртуальное окружение
+
+```bash
 python -m venv .venv
-.venv\Scripts\activate
-
-После активации в начале строки терминала появится (.venv).
+.venv\Scripts\activate        # Windows
+source .venv/bin/activate     # Linux / macOS
+```
 
 ### 3. Установить зависимости
 
+```bash
 pip install -r requirements.txt
+```
 
-# 4. Запустить PostgreSQL через Docker
+### 4. Запустить PostgreSQL
 
-docker run --name diabetes-pg -e POSTGRES_USER=ПОЛЬЗОВАТЕЛЬ -e POSTGRES_PASSWORD=ПАРОЛЬ -e POSTGRES_DB=diary -p 5433:5432 -d postgres:16        
+Вариант А — через Docker (проще всего):
 
-Проверить, что контейнер запущен:
-docker ps
+```bash
+docker run --name diabetes-pg ^
+  -e POSTGRES_USER=app ^
+  -e POSTGRES_PASSWORD=app ^
+  -e POSTGRES_DB=diary ^
+  -p 5433:5432 ^
+  -d postgres:16
+```
 
-# 5. Создать файл конфигурации
+Проверить запуск: `docker ps`.
 
-Скопируйте .env.example в .env
+Вариант Б — локально установленная PostgreSQL: создайте БД `diary` и
+пользователя, параметры подключите в `.env`.
 
-# 6. Применить миграции базы данных
+### 5. Создать файл конфигурации
 
+Скопируйте `.env.example` в `.env` и укажите адрес БД. Для Docker-варианта А
+(порт 5433 на хосте):
+
+```
+DATABASE_URL=postgresql+psycopg2://app:app@localhost:5433/diary
+APP_PORT=8000
+LOG_LEVEL=INFO
+CORS_ORIGINS=http://localhost:8000
+CARBS_PER_BREAD_UNIT=12
+APP_TIMEZONE=Europe/Moscow
+```
+
+### 6. Инициализировать схему и тестовые данные
+
+```bash
 cd backend
-alembic upgrade head
-
-# 7. Заполнить базу тестовыми данными (опционально)
-
 python -m scripts.seed
+```
 
-# 8. Запустить сервер
+Скрипт создаёт таблицы (через SQLAlchemy metadata) и наполняет базу
+тестовыми продуктами и событиями. Повторный запуск идемпотентен для продуктов.
 
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+### 7. Запустить сервер
 
-# 9. Открыть приложение
+```bash
+python run.py
+```
+
+Порт берётся из переменной `APP_PORT` в `.env` — менять команду запуска не нужно.
+
+### 8. Открыть приложение
 
 http://localhost:8000/
-
 

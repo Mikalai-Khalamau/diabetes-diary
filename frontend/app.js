@@ -1,18 +1,16 @@
 const API_BASE = '/api';
-
 let foodsCache = [];
+
+function escapeHtml(text) {
+    if (text === null || text === undefined) return '';
+    return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
 
 async function parseError(response) {
     try {
-        const contentType = response.headers.get("content-type");
-        if (contentType && contentType.indexOf("application/json") !== -1) {
-            const data = await response.json();
-            if (data && data.detail) {
-                if (Array.isArray(data.detail)) {
-                    return data.detail[0].msg || 'Ошибка валидации данных';
-                }
-                return data.detail;
-            }
+        const data = await response.json();
+        if (data && data.detail) {
+            return Array.isArray(data.detail) ? data.detail[0].msg : data.detail;
         }
         return `Ошибка сервера (${response.status})`;
     } catch (e) {
@@ -24,19 +22,18 @@ document.addEventListener('DOMContentLoaded', () => {
     loadFoods();
     loadRecentEvents();
     loadRecentStats();
-
-    document.getElementById('glucose-form').addEventListener('submit', handleGlucoseSubmit);
-    document.getElementById('insulin-form').addEventListener('submit', handleInsulinSubmit);
-    document.getElementById('meal-form').addEventListener('submit', handleMealSubmit);
-    document.getElementById('food-form').addEventListener('submit', handleFoodSubmit);
+    document.getElementById('glucose-form')?.addEventListener('submit', handleGlucoseSubmit);
+    document.getElementById('insulin-form')?.addEventListener('submit', handleInsulinSubmit);
+    document.getElementById('meal-form')?.addEventListener('submit', handleMealSubmit);
+    document.getElementById('food-form')?.addEventListener('submit', handleFoodSubmit);
 });
 
 async function loadFoods() {
     try {
-        const response = await fetch(`${API_BASE}/foods`);
+        const response = await fetch(`${API_BASE}/foods/`);
         if (!response.ok) throw new Error(await parseError(response));
-
         foodsCache = await response.json();
+        if (!Array.isArray(foodsCache)) foodsCache = [];
         renderFoodsList();
         updateFoodDatalist();
     } catch (error) {
@@ -46,47 +43,37 @@ async function loadFoods() {
 
 async function loadRecentEvents() {
     try {
-        const response = await fetch(`${API_BASE}/events/recent`);
+        const response = await fetch(`${API_BASE}/events/recent?t=${Date.now()}`);
         if (!response.ok) throw new Error(await parseError(response));
-
-        const data = await response.json();
-        renderEvents(data);
+        renderEvents(await response.json());
     } catch (error) {
         console.error('Ошибка загрузки событий:', error);
-        alert('Ошибка загрузки событий: ' + error.message);
     }
 }
 
 async function loadRecentStats() {
     try {
-        const response = await fetch(`${API_BASE}/stats/recent`);
+        const response = await fetch(`${API_BASE}/stats/recent?t=${Date.now()}`);
         if (!response.ok) throw new Error(await parseError(response));
-
-        const data = await response.json();
-        renderStats(data);
+        renderStats(await response.json());
     } catch (error) {
         console.error('Ошибка загрузки статистики:', error);
-        alert('Ошибка загрузки статистики: ' + error.message);
     }
 }
 
 async function handleGlucoseSubmit(event) {
     event.preventDefault();
     const value = parseFloat(document.getElementById('glucose-value').value);
-
     try {
-        const response = await fetch(`${API_BASE}/glucose-events`, {
+        const response = await fetch(`${API_BASE}/glucose-events/`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ value: value })
+            body: JSON.stringify({ value })
         });
-
         if (!response.ok) throw new Error(await parseError(response));
-
         document.getElementById('glucose-form').reset();
         await loadRecentEvents();
         await loadRecentStats();
-        alert('Измерение сахара добавлено!');
     } catch (error) {
         alert('Ошибка: ' + error.message);
     }
@@ -96,20 +83,16 @@ async function handleInsulinSubmit(event) {
     event.preventDefault();
     const insulin_type = document.getElementById('insulin-type').value;
     const dose = parseFloat(document.getElementById('insulin-dose').value);
-
     try {
-        const response = await fetch(`${API_BASE}/insulin-events`, {
+        const response = await fetch(`${API_BASE}/insulin-events/`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ insulin_type, dose })
         });
-
         if (!response.ok) throw new Error(await parseError(response));
-
         document.getElementById('insulin-form').reset();
         await loadRecentEvents();
         await loadRecentStats();
-        alert('Инсулин добавлен!');
     } catch (error) {
         alert('Ошибка: ' + error.message);
     }
@@ -117,38 +100,26 @@ async function handleInsulinSubmit(event) {
 
 async function handleMealSubmit(event) {
     event.preventDefault();
-
     const foodNameInput = document.getElementById('meal-food-name');
     const gramsInput = document.getElementById('meal-grams');
-
     const foodName = foodNameInput.value.trim();
     const grams = parseFloat(gramsInput.value);
-
     const food = foodsCache.find(f => f.name.toLowerCase() === foodName.toLowerCase());
-
     if (!food) {
-        alert('Продукт не найден в справочнике. Введите точное название из подсказок или сначала добавьте его.');
+        alert('Продукт не найден в справочнике.');
         return;
     }
-
     try {
-        const response = await fetch(`${API_BASE}/meal-events`, {
+        const response = await fetch(`${API_BASE}/meal-events/`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                food_id: food.id,
-                grams: grams
-            })
+            body: JSON.stringify({ food_id: food.id, grams })
         });
-
         if (!response.ok) throw new Error(await parseError(response));
-
         foodNameInput.value = '';
         gramsInput.value = '';
-
         await loadRecentEvents();
         await loadRecentStats();
-        alert('Приём пищи добавлен!');
     } catch (error) {
         alert('Ошибка: ' + error.message);
     }
@@ -158,19 +129,15 @@ async function handleFoodSubmit(event) {
     event.preventDefault();
     const name = document.getElementById('food-name').value;
     const carbs_per_100g = parseFloat(document.getElementById('food-carbs').value);
-
     try {
-        const response = await fetch(`${API_BASE}/foods`, {
+        const response = await fetch(`${API_BASE}/foods/`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name, carbs_per_100g })
         });
-
         if (!response.ok) throw new Error(await parseError(response));
-
         document.getElementById('food-form').reset();
         await loadFoods();
-        alert('Продукт добавлен!');
     } catch (error) {
         alert('Ошибка: ' + error.message);
     }
@@ -178,14 +145,9 @@ async function handleFoodSubmit(event) {
 
 async function deleteEvent(eventType, eventId) {
     if (!confirm('Удалить это событие?')) return;
-
     try {
-        const response = await fetch(`${API_BASE}/${eventType}/${eventId}`, {
-            method: 'DELETE'
-        });
-
+        const response = await fetch(`${API_BASE}/${eventType}/${eventId}`, { method: 'DELETE' });
         if (!response.ok) throw new Error(await parseError(response));
-
         await loadRecentEvents();
         await loadRecentStats();
     } catch (error) {
@@ -195,14 +157,9 @@ async function deleteEvent(eventType, eventId) {
 
 async function deleteFood(foodId) {
     if (!confirm('Удалить этот продукт?')) return;
-
     try {
-        const response = await fetch(`${API_BASE}/foods/${foodId}`, {
-            method: 'DELETE'
-        });
-
+        const response = await fetch(`${API_BASE}/foods/${foodId}`, { method: 'DELETE' });
         if (!response.ok) throw new Error(await parseError(response));
-
         await loadFoods();
     } catch (error) {
         alert('Ошибка: ' + error.message);
@@ -211,48 +168,40 @@ async function deleteFood(foodId) {
 
 function renderEvents(data) {
     const todayContainer = document.getElementById('today-events');
-    document.getElementById('today-date').textContent = `Сегодня (${data.today.date})`;
-
-    if (data.today.events.length === 0) {
+    const yesterdayContainer = document.getElementById('yesterday-events');
+    document.getElementById('today-date').textContent = `Сегодня (${data.today?.date || '---'})`;
+    document.getElementById('yesterday-date').textContent = `Вчера (${data.yesterday?.date || '---'})`;
+    if (!data.today?.events || data.today.events.length === 0) {
         todayContainer.innerHTML = '<div class="empty-state">Нет событий</div>';
     } else {
-        todayContainer.innerHTML = data.today.events.map(event => renderEventItem(event)).join('');
+        todayContainer.innerHTML = data.today.events.map(renderEventItem).join('');
     }
-
-    const yesterdayContainer = document.getElementById('yesterday-events');
-    document.getElementById('yesterday-date').textContent = `Вчера (${data.yesterday.date})`;
-
-    if (data.yesterday.events.length === 0) {
+    if (!data.yesterday?.events || data.yesterday.events.length === 0) {
         yesterdayContainer.innerHTML = '<div class="empty-state">Нет событий</div>';
     } else {
-        yesterdayContainer.innerHTML = data.yesterday.events.map(event => renderEventItem(event)).join('');
+        yesterdayContainer.innerHTML = data.yesterday.events.map(renderEventItem).join('');
     }
 }
 
 function renderEventItem(event) {
     const time = new Date(event.occurred_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
     let details = '';
-    let typeClass = event.event_type;
-
+    const typeClass = event.event_type || 'unknown';
     if (event.event_type === 'glucose') {
-        details = `Сахар: ${event.value} ммоль/л`;
+        details = `Сахар: ${escapeHtml(event.value)} ммоль/л`;
     } else if (event.event_type === 'insulin') {
         const typeLabel = event.insulin_type === 'short' ? 'Короткий' : 'Длинный';
-        details = `Инсулин ${typeLabel}: ${event.dose} ед`;
+        details = `Инсулин ${typeLabel}: ${escapeHtml(event.dose)} ед`;
     } else if (event.event_type === 'meal') {
         const food = foodsCache.find(f => f.id === event.food_id);
-        const foodName = food ? food.name : 'Неизвестный продукт';
-        details = `${foodName}: ${event.grams} г (${event.carbs_grams} г углеводов, ${event.bread_units} ХЕ)`;
+        const foodName = (food && food.name) ? escapeHtml(food.name) : 'Неизвестный продукт';
+        details = `${foodName}: ${escapeHtml(event.grams)} г (${escapeHtml(event.carbs_grams)} г угл., ${escapeHtml(event.bread_units)} ХЕ)`;
     }
-
-    if (event.note) {
-        details += ` — ${event.note}`;
-    }
-
+    if (event.note) details += ` — ${escapeHtml(event.note)}`;
     return `
         <div class="event-item ${typeClass}">
             <div class="event-info">
-                <div class="event-time">${time}</div>
+                <div class="event-time">${escapeHtml(time)}</div>
                 <div class="event-details">${details}</div>
             </div>
             <button class="event-delete" onclick="deleteEvent('${event.event_type}-events', ${event.id})">Удалить</button>
@@ -261,63 +210,55 @@ function renderEventItem(event) {
 }
 
 function renderStats(data) {
-    const todayContainer = document.getElementById('today-stats');
-    document.getElementById('stats-today-date').textContent = `Сегодня (${data.today.date})`;
-    todayContainer.innerHTML = renderDayStats(data.today);
-
-    const yesterdayContainer = document.getElementById('yesterday-stats');
-    document.getElementById('stats-yesterday-date').textContent = `Вчера (${data.yesterday.date})`;
-    yesterdayContainer.innerHTML = renderDayStats(data.yesterday);
+    document.getElementById('stats-today-date').textContent = `Сегодня (${data.today?.date || '---'})`;
+    document.getElementById('stats-yesterday-date').textContent = `Вчера (${data.yesterday?.date || '---'})`;
+    document.getElementById('today-stats').innerHTML = renderDayStats(data.today);
+    document.getElementById('yesterday-stats').innerHTML = renderDayStats(data.yesterday);
 }
 
 function renderDayStats(dayStats) {
-    const glucose = dayStats.glucose;
-    const insulin = dayStats.insulin;
-    const meal = dayStats.meal;
-
-    const formatNum = (val, decimals = 1) => (val !== null && val !== undefined ? parseFloat(val).toFixed(decimals) : '—');
-    const formatInt = (val) => (val !== null && val !== undefined ? parseInt(val, 10) : 0);
-
+    if (!dayStats) return '<div class="empty-state">Нет данных</div>';
+    const g = dayStats.glucose || {};
+    const i = dayStats.insulin || {};
+    const m = dayStats.meal || {};
+    const fmtNum = (val, dec = 1) => (val !== null && val !== undefined) ? parseFloat(val).toFixed(dec) : '—';
+    const fmtInt = (val) => (val !== null && val !== undefined) ? parseInt(val, 10) : 0;
     return `
         <div class="stat-card">
             <h4>Сахар</h4>
-            <div class="stat-value">${formatNum(glucose.avg)}</div>
+            <div class="stat-value">${fmtNum(g.avg)}</div>
             <div class="stat-label">Среднее (ммоль/л)</div>
-            <div class="stat-label">Мин: ${formatNum(glucose.min)}, Макс: ${formatNum(glucose.max)}</div>
-            <div class="stat-label">Замеров: ${formatInt(glucose.count)}</div>
+            <div class="stat-label">Мин: ${fmtNum(g.min)}, Макс: ${fmtNum(g.max)}</div>
+            <div class="stat-label">Замеров: ${fmtInt(g.count)}</div>
         </div>
-
         <div class="stat-card">
             <h4>Инсулин</h4>
-            <div class="stat-value">${formatNum(insulin.total_dose)}</div>
+            <div class="stat-value">${fmtNum(i.total_dose)}</div>
             <div class="stat-label">Всего (ед)</div>
-            <div class="stat-label">Короткий: ${formatNum(insulin.short_total_dose)} ед (${formatInt(insulin.short_count)})</div>
-            <div class="stat-label">Длинный: ${formatNum(insulin.long_total_dose)} ед (${formatInt(insulin.long_count)})</div>
+            <div class="stat-label">Короткий: ${fmtNum(i.short_total_dose)} ед (${fmtInt(i.short_count)})</div>
+            <div class="stat-label">Длинный: ${fmtNum(i.long_total_dose)} ед (${fmtInt(i.long_count)})</div>
         </div>
-
         <div class="stat-card">
             <h4>Еда</h4>
-            <div class="stat-value">${formatNum(meal.total_carbs_grams, 0)}</div>
+            <div class="stat-value">${fmtNum(m.total_carbs_grams, 0)}</div>
             <div class="stat-label">Углеводы (г)</div>
-            <div class="stat-label">ХЕ: ${formatNum(meal.total_bread_units)}</div>
-            <div class="stat-label">Приёмов пищи: ${formatInt(meal.count)}</div>
+            <div class="stat-label">ХЕ: ${fmtNum(m.total_bread_units)}</div>
+            <div class="stat-label">Приёмов пищи: ${fmtInt(m.count)}</div>
         </div>
     `;
 }
 
 function renderFoodsList() {
     const container = document.getElementById('foods-list');
-
-    if (foodsCache.length === 0) {
+    if (!foodsCache || foodsCache.length === 0) {
         container.innerHTML = '<div class="empty-state">Нет продуктов</div>';
         return;
     }
-
     container.innerHTML = foodsCache.map(food => `
         <div class="food-item">
             <div class="food-info">
-                <div class="food-name">${food.name}</div>
-                <div class="food-carbs">${food.carbs_per_100g} г углеводов на 100 г</div>
+                <div class="food-name">${escapeHtml(food.name)}</div>
+                <div class="food-carbs">${escapeHtml(food.carbs_per_100g)} г углеводов на 100 г</div>
             </div>
             <button class="food-delete" onclick="deleteFood(${food.id})">Удалить</button>
         </div>
@@ -326,8 +267,8 @@ function renderFoodsList() {
 
 function updateFoodDatalist() {
     const datalist = document.getElementById('foods-datalist');
+    if (!datalist) return;
     datalist.innerHTML = '';
-
     foodsCache.forEach(food => {
         const option = document.createElement('option');
         option.value = food.name;

@@ -8,6 +8,7 @@ from app.database import get_db
 router = APIRouter(
     prefix="/api/insulin-events",
     tags=["insulin-events"],
+redirect_slashes=False
 )
 
 
