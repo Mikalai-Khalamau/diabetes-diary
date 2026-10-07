@@ -1,7 +1,5 @@
 import os
 
-# Задаём env ДО импорта app: settings требует database_url и secret_key без дефолтов,
-# и мы хотим целиться в тестовую БД (порт 5434), а не в прода-хост "db".
 os.environ.setdefault("DATABASE_URL", "postgresql+psycopg2://app:app@localhost:5434/diary_test")
 os.environ.setdefault("SECRET_KEY", "test-secret-key")
 os.environ.setdefault("APP_TIMEZONE", "Europe/Moscow")

@@ -5,7 +5,6 @@
 ## Целевые пользователи
 
 - **Пациент с сахарным диабетом** — основной пользователь: регистрируется, вносит измерения сахара, инъекции инсулина и приёмы пищи, ведёт свой справочник продуктов, смотрит ленту и статистику.
-- **Врач / эндокринолог** — вторичный потребитель данных для разбора (вне системы; ролевой модели и совместного доступа между аккаунтами нет).
 
 ## Возможности
 
@@ -219,9 +218,11 @@ http://localhost:8000/
 
 ### 9. Запуск тестов
 
+```bash
 python -m venv .venv        
 .venv\Scripts\activate 
 pip install -r requirements-dev.txt  
 docker compose -f docker-compose.test.yml up -d  
 docker compose -f docker-compose.test.yml ps      
 pytest --cov=app --cov-report=term-missing --cov-report=xml --cov-report=html  
+```
