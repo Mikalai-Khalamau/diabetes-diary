@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: diabetes-config
+data:
+  APP_PORT: "8000"
+  LOG_LEVEL: "INFO"
+  CORS_ORIGINS: "*"
+  CARBS_PER_BREAD_UNIT: "12"
+  APP_TIMEZONE: "Europe/Moscow"
+  ALGORITHM: "HS256"
+  ACCESS_TOKEN_EXPIRE_MINUTES: "1440"

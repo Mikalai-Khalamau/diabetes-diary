@@ -1,0 +1,42 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: diabetes-seed
+spec:
+  backoffLimit: 2
+  activeDeadlineSeconds: 180
+  template:
+    spec:
+      restartPolicy: Never
+      initContainers:
+        - name: wait-for-db
+          image: postgres:16
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              until pg_isready -h diabetes-db -U app -d diary; do
+                echo "Waiting for PostgreSQL..."
+                sleep 2
+              done
+      containers:
+        - name: seed
+          image: diabetes-app:minikube
+          imagePullPolicy: IfNotPresent
+          command:
+            - python
+            - -m
+            - scripts.seed
+          envFrom:
+            - configMapRef:
+                name: diabetes-config
+            - secretRef:
+                name: diabetes-secrets
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 300m
+              memory: 256Mi
