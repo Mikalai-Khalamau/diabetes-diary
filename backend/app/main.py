@@ -1,6 +1,8 @@
 import logging
 import sys
+import json
 from pathlib import Path
+from datetime import datetime, timezone
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,12 +12,27 @@ from fastapi.staticfiles import StaticFiles
 from app.config import settings
 from app.api import auth, foods, glucose_events, insulin_events, meal_events, recent
 
-logging.basicConfig(
-    level=getattr(logging, settings.log_level.upper()),
-    stream=sys.stdout,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
+class JSONFormatter(logging.Formatter):
+    def format(self, record):
+        log_record = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "level": record.levelname,
+            "message": record.getMessage(),
+            "service.name": "diabetes-diary",
+            "logger": record.name,
+        }
+
+        if record.exc_info:
+            log_record["exception"] = self.formatException(record.exc_info)
+        return json.dumps(log_record, ensure_ascii=False)
+
+handler = logging.StreamHandler(sys.stdout)
+handler.setFormatter(JSONFormatter())
+
 logger = logging.getLogger(__name__)
+logger.setLevel(getattr(logging, settings.log_level.upper()))
+logger.addHandler(handler)
+logger.propagate = False
 
 app = FastAPI(
     title="Diabetes Diary API",
