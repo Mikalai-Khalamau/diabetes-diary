@@ -11,11 +11,22 @@ from app.security import hash_password, verify_password
 
 from app.default_foods import DEFAULT_FOODS
 
+from app.metrics import (
+    GLUCOSE_MEASUREMENTS_TOTAL,
+    INSULIN_INJECTIONS_TOTAL,
+    MEAL_EVENTS_TOTAL,
+    AUTH_ATTEMPTS_TOTAL,
+    USERS_REGISTERED_TOTAL,
+)
+
 
 def create_user(db: Session, user: schemas.UserCreate) -> models.User:
     db_user = models.User(email=user.email, password_hash=hash_password(user.password))
     db.add(db_user)
     db.commit()
+
+    USERS_REGISTERED_TOTAL.inc()
+
     db.refresh(db_user)
     return db_user
 
@@ -31,9 +42,12 @@ def get_user_by_email(db: Session, email: str) -> models.User | None:
 def authenticate_user(db: Session, email: str, password: str) -> models.User | None:
     user = get_user_by_email(db, email=email)
     if not user:
+        AUTH_ATTEMPTS_TOTAL.labels(status='failure').inc()
         return None
     if not verify_password(password, user.password_hash):
+        AUTH_ATTEMPTS_TOTAL.labels(status='failure').inc()
         return None
+    AUTH_ATTEMPTS_TOTAL.labels(status='success').inc()
     return user
 
 
@@ -137,6 +151,9 @@ def create_glucose_event(db: Session, event: schemas.GlucoseEventCreate, user_id
     )
     db.add(db_event)
     db.commit()
+
+    GLUCOSE_MEASUREMENTS_TOTAL.inc()
+
     db.refresh(db_event)
     return db_event
 
@@ -192,6 +209,9 @@ def create_insulin_event(db: Session, event: schemas.InsulinEventCreate, user_id
     )
     db.add(db_event)
     db.commit()
+
+    INSULIN_INJECTIONS_TOTAL.labels(insulin_type=event.insulin_type).inc()
+
     db.refresh(db_event)
     return db_event
 
@@ -256,6 +276,9 @@ def create_meal_event(db: Session, event: schemas.MealEventCreate, user_id: int)
     )
     db.add(db_event)
     db.commit()
+
+    MEAL_EVENTS_TOTAL.inc()
+
     db.refresh(db_event)
     return db_event
 

@@ -13,6 +13,10 @@ spec:
     metadata:
       labels:
         app: diabetes-db
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9187"
+        prometheus.io/path: "/metrics"
     spec:
       containers:
         - name: postgres
@@ -50,6 +54,27 @@ spec:
             limits:
               cpu: 500m
               memory: 512Mi
+
+        - name: postgres-exporter
+          image: prometheuscommunity/postgres-exporter:v0.15.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: metrics
+              containerPort: 9187
+          env:
+            - name: DATA_SOURCE_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: diabetes-secrets
+                  key: POSTGRES_EXPORTER_DSN
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+
       volumes:
         - name: db-data
           persistentVolumeClaim:

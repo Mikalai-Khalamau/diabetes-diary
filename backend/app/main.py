@@ -11,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
 from app.api import auth, foods, glucose_events, insulin_events, meal_events, recent
+from prometheus_fastapi_instrumentator import Instrumentator
 
 class JSONFormatter(logging.Formatter):
     def format(self, record):
@@ -54,6 +55,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+Instrumentator().instrument(app).expose(app, endpoint="/metrics")
 
 frontend_path = Path.cwd() / "frontend"
 
