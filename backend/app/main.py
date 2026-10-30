@@ -6,12 +6,13 @@ from datetime import datetime, timezone
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
 from app.api import auth, foods, glucose_events, insulin_events, meal_events, recent
 from prometheus_fastapi_instrumentator import Instrumentator
+from sqlalchemy import create_engine, text
 
 class JSONFormatter(logging.Formatter):
     def format(self, record):
@@ -89,3 +90,26 @@ async def shutdown_event():
 @app.get("/healthz", tags=["health"])
 def health_check():
     return {"status": "ok"}
+
+
+@app.get("/readyz", tags=["health"])
+def readiness_check():
+    try:
+        engine = create_engine(
+            settings.database_url,
+            pool_size=1,
+            max_overflow=0,
+            pool_timeout=2,
+            pool_pre_ping=True,
+        )
+        with engine.connect() as conn:
+            result = conn.execute(text("SELECT 1"))
+            result.fetchone()
+        engine.dispose()
+        return {"status": "ready"}
+    except Exception as e:
+        logger.error(f"Readiness check failed: {e}")
+        return JSONResponse(
+            status_code=503,
+            content={"status": "not ready", "error": str(e)}
+        )

@@ -35,14 +35,6 @@ spec:
                 name: diabetes-config
             - secretRef:
                 name: diabetes-secrets
-          readinessProbe:
-            httpGet:
-              path: /healthz
-              port: 8000
-            initialDelaySeconds: 5
-            periodSeconds: 10
-            timeoutSeconds: 3
-            failureThreshold: 10
           livenessProbe:
             httpGet:
               path: /healthz
@@ -51,6 +43,14 @@ spec:
             periodSeconds: 20
             timeoutSeconds: 3
             failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 10
           resources:
             requests:
               cpu: 100m

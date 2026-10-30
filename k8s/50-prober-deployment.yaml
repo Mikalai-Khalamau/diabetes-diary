@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: diabetes-prober
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: diabetes-prober
+  template:
+    metadata:
+      labels:
+        app: diabetes-prober
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8001"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: prober
+          image: diabetes-app:minikube
+          imagePullPolicy: IfNotPresent
+          command:
+            - python
+            - -m
+            - app.prober
+          ports:
+            - name: metrics
+              containerPort: 8001
+          envFrom:
+            - configMapRef:
+                name: diabetes-config
+            - secretRef:
+                name: diabetes-secrets
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
