@@ -13,3 +13,5 @@ __pycache__/
 Thumbs.db
 
 *.zip
+
+k8s/61-alertmanager.yaml

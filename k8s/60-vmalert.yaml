@@ -1,0 +1,132 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vmalert-rules
+  namespace: default
+data:
+  rules.yml: |
+    groups:
+      - name: diabetes-service
+        interval: 30s
+        rules:
+          - alert: HighHttpErrorRate
+            expr: sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m])) > 0.05
+            for: 3m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Высокая доля ошибок 5xx на diabetes-app"
+              description: "Более 5% HTTP запросов завершаются с ошибкой 5xx последние 3 минуты"
+              runbook: "Проверить логи подов diabetes-app и подключение к базе данных"
+
+          - alert: ProberEndToEndFailure
+            expr: sum(rate(prober_checks_total{result="success"}[5m])) / sum(rate(prober_checks_total[5m])) < 0.9
+            for: 2m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Сбои end-to-end проверок пробера (>10%)"
+              description: "Синтетические проверки пользователя не проходят, сервис деградировал"
+              runbook: "Проверить логи diabetes-app и доступность базы"
+
+          - alert: DatabaseDown
+            expr: pg_up == 0 or absent(pg_up) == 1
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "База данных PostgreSQL недоступна"
+              description: "postgres-exporter не может подключиться к базе данных"
+              runbook: "Проверить статус пода diabetes-db и PVC"
+
+          - alert: AuthFailureSpike
+            expr: sum(rate(diabetes_auth_attempts_total{status="failure"}[5m])) / sum(rate(diabetes_auth_attempts_total[5m])) > 0.5
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Высокая доля неудачных попыток входа"
+              description: "Более 50% попыток аутентификации завершаются неудачей"
+              runbook: "Проверить работу эндпоинта /api/auth/login или наличие брутфорс-атаки"
+
+      - name: diabetes-runtime
+        interval: 30s
+        rules:
+          - alert: HighMemoryUsage
+            expr: process_resident_memory_bytes{app="diabetes-app"} > 200 * 1024 * 1024
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Высокое потребление памяти приложением"
+              description: "RSS Python-процесса превышает 200 МБ (лимит пода 256 МБ)"
+              runbook: "Проверить приложение на утечки памяти, рассмотреть перезапуск"
+
+          - alert: HighLatencyP95
+            expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 1 or absent(http_request_duration_seconds_bucket) == 1
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Высокая задержка API (p95 > 1с)"
+              description: "95-й перцентиль времени ответа превышает 1 секунду"
+              runbook: "Проверить нагрузку на базу данных и утилизацию ресурсов приложения"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vmalert
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vmalert
+  template:
+    metadata:
+      labels:
+        app: vmalert
+    spec:
+      containers:
+        - name: vmalert
+          image: victoriametrics/vmalert:v1.102.1
+          args:
+            - -datasource.url=http://vmsingle-victoria-metrics-single-server:8428
+            - -remoteWrite.url=http://vmsingle-victoria-metrics-single-server:8428
+            - -remoteRead.url=http://vmsingle-victoria-metrics-single-server:8428
+            - -notifier.url=http://alertmanager:9093
+            - -rule=/etc/vmalert/rules.yml
+            - -httpListenAddr=:8880
+          ports:
+            - name: http
+              containerPort: 8880
+          volumeMounts:
+            - name: rules
+              mountPath: /etc/vmalert
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+      volumes:
+        - name: rules
+          configMap:
+            name: vmalert-rules
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vmalert
+  namespace: default
+spec:
+  type: ClusterIP
+  selector:
+    app: vmalert
+  ports:
+    - name: http
+      port: 8880
+      targetPort: 8880

@@ -92,3 +92,74 @@ spec:
   podSelector: {}
   policyTypes:
     - Ingress
+---
+# Политика для vmalert: может ходить к VM (read/write) и к Alertmanager (notifier)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: vmalert-network-policy
+  namespace: default
+spec:
+  podSelector:
+    matchLabels:
+      app: vmalert
+  policyTypes:
+    - Egress
+  egress:
+    # DNS
+    - ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # К VictoriaMetrics
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: victoria-metrics-single
+      ports:
+        - protocol: TCP
+          port: 8428
+    # К Alertmanager
+    - to:
+        - podSelector:
+            matchLabels:
+              app: alertmanager
+      ports:
+        - protocol: TCP
+          port: 9093
+
+---
+# Политика для Alertmanager: принимает трафик от vmalert
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: alertmanager-network-policy
+  namespace: default
+spec:
+  podSelector:
+    matchLabels:
+      app: alertmanager
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: vmalert
+      ports:
+        - protocol: TCP
+          port: 9093
+  egress:
+    # DNS (для резолва api.telegram.org)
+    - ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Внешний трафик в интернет (для отправки в Telegram)
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 443
